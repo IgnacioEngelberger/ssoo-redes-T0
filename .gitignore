@@ -1,0 +1,24 @@
+# Archivos de compilación
+obj/
+*.o
+*.out
+*.exe
+
+# Archivos de sistema macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Archivos de compilación específicos del proyecto
+dccadmin
+
+# No ignorar la carpeta src/dccAdmin/
+!src/dccAdmin/
+# Archivos temporales
+*~
+*.swp
+*.swo
+
+# Archivos de IDE
+.vscode/
+.idea/
