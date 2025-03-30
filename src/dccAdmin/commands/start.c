@@ -1,16 +1,17 @@
 #include "start.h"
 
-void start_process(char **args)
+void start_process(char **args, struct shared_memory *shared)
 {
   if (args[1] == NULL)
   {
-    printf("Error: Debe especificar un ejecutable\n");
+    printf("Error: Debe especificar al menos un ejecutable y sus argumentos\n");
+    printf("Uso: start <executable> <arg1> <arg2> ... <argn>\n");
     return;
   }
 
-  if (process_count >= MAX_PROCESSES)
+  if (shared->process_count >= MAX_PROCESSES)
   {
-    printf("Error: Número máximo de procesos alcanzado (10)\n");
+    printf("Error: Número máximo de procesos alcanzado (%d)\n", MAX_PROCESSES);
     return;
   }
 
@@ -23,7 +24,6 @@ void start_process(char **args)
   }
   else if (pid == 0)
   {
-    // Proceso hijo
     execvp(args[1], &args[1]);
     // Si llegamos aquí, hubo un error
     perror("Error al ejecutar el programa");
@@ -31,17 +31,21 @@ void start_process(char **args)
   }
   else
   {
-    // Proceso padre
-    processes[process_count].pid = pid;
-    strncpy(processes[process_count].name, args[1], 255);
-    processes[process_count].start_time = time(NULL);
-    processes[process_count].exit_code = -1;
-    processes[process_count].signal_value = -1;
-    processes[process_count].running = 1;
-    processes[process_count].timeout_id = 0;   // Inicialmente no está afectado por timeout
-    processes[process_count].sigterm_time = 0; // Inicialmente no ha recibido SIGTERM
+    shared->processes[shared->process_count].pid = pid;
+    strncpy(shared->processes[shared->process_count].name, args[1], 255);
+    shared->processes[shared->process_count].start_time = time(NULL);
+    shared->processes[shared->process_count].exit_code = -1;
+    shared->processes[shared->process_count].signal_value = -1;
+    shared->processes[shared->process_count].running = 1;
+    shared->processes[shared->process_count].timeout_id = 0;   // Inicialmente no está afectado por timeout
+    shared->processes[shared->process_count].sigterm_time = 0; // Inicialmente no ha recibido SIGTERM
 
-    printf("Proceso iniciado: PID=%d, Programa=%s\n", pid, args[1]);
-    process_count++;
+    shared->process_count++;
+
+    printf("Proceso iniciado: PID=%d, Programa=%s", pid, args[1]);
+    // Imprimir argumentos adicionales si existen
+    for (int i = 2; args[i] != NULL; i++)
+      printf(" %s", args[i]);
+    printf("\n\n");
   }
 }

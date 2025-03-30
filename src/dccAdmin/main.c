@@ -4,51 +4,27 @@
 #include "commands/timeout.h"
 #include "commands/quit.h"
 #include "commands/help.h"
+#include "process_monitor.h"
+#include "timemax_monitor.h"
 
 // Definiciones de variables globales
-ProcessInfo processes[MAX_PROCESSES];
-int process_count = 0;
+struct shared_memory *shared = NULL;
 int time_max = -1;             // -1 significa tiempo ilimitado
 pid_t timemax_monitor_pid = 0; // PID del proceso que monitorea el time_max
+pid_t process_monitor_pid = 0; // PID del proceso que monitorea los procesos
+char **input = NULL;
 
 // Implementación de funciones generales
 void handle_sigint(int sig)
 {
+  if (shared != NULL)
+    munmap(shared, sizeof(struct shared_memory));
   printf("\nRecibido SIGINT (%d). Terminando...\n", sig);
-  if (timemax_monitor_pid > 0)
-  {
-    kill(timemax_monitor_pid, SIGTERM);
-  }
-  exit(0);
-}
-
-void update_process_status()
-{
-  for (int i = 0; i < process_count; i++)
-  {
-    if (processes[i].running)
-    {
-      int status;
-      pid_t result = waitpid(processes[i].pid, &status, WNOHANG);
-
-      if (result > 0)
-      {
-        processes[i].running = 0;
-        processes[i].timeout_id = 0;   // Limpiar el timeout al terminar
-        processes[i].sigterm_time = 0; // Limpiar el tiempo de SIGTERM al terminar
-        if (WIFEXITED(status))
-        {
-          processes[i].exit_code = WEXITSTATUS(status);
-          processes[i].signal_value = -1;
-        }
-        else if (WIFSIGNALED(status))
-        {
-          processes[i].exit_code = -1;
-          processes[i].signal_value = WTERMSIG(status);
-        }
-      }
-    }
-  }
+  if (input != NULL)
+    free_user_input(input);
+  stop_timemax_monitor(timemax_monitor_pid);
+  stop_process_monitor(process_monitor_pid);
+  quit_program(shared);
 }
 
 void print_process_info(ProcessInfo *p)
@@ -64,93 +40,31 @@ void print_process_info(ProcessInfo *p)
          p->running ? -1 : p->signal_value);
 }
 
-// Función para verificar si los procesos han excedido el tiempo máximo global
-void check_timemax_processes()
-{
-  if (time_max <= 0)
-    return; // No hay tiempo máximo
-
-  while (1)
-  {
-    update_process_status();
-
-    time_t current_time = time(NULL);
-    for (int i = 0; i < process_count; i++)
-    {
-      if (processes[i].running)
-      {
-        int execution_time = (int)difftime(current_time, processes[i].start_time);
-
-        // Si el proceso ha excedido el tiempo máximo y aún no ha recibido SIGTERM
-        if (execution_time >= time_max && processes[i].sigterm_time == 0)
-        {
-          printf("TimeMax: Proceso %d (%s) ha excedido el tiempo máximo de ejecución (%d segundos).\n",
-                 processes[i].pid, processes[i].name, time_max);
-
-          // Enviar SIGTERM
-          kill(processes[i].pid, SIGTERM);
-
-          // Registrar el tiempo en que se envió SIGTERM
-          processes[i].sigterm_time = current_time;
-        }
-        // Si ya se envió SIGTERM, verificar si han pasado 5 segundos para enviar SIGKILL
-        else if (processes[i].sigterm_time > 0)
-        {
-          int time_since_sigterm = (int)difftime(current_time, processes[i].sigterm_time);
-
-          if (time_since_sigterm >= 5)
-          {
-            // Verificar si el proceso aún está en ejecución
-            int status;
-            if (waitpid(processes[i].pid, &status, WNOHANG) == 0)
-            {
-              // No terminó después de SIGTERM, enviamos SIGKILL
-              printf("TimeMax: Proceso %d (%s) no terminó después de SIGTERM. Enviando SIGKILL.\n",
-                     processes[i].pid, processes[i].name);
-              kill(processes[i].pid, SIGKILL);
-
-              // Esperamos a que termine, pero sin bloquear todo el proceso
-              waitpid(processes[i].pid, &status, WNOHANG);
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
 int main(int argc, char const *argv[])
 {
-  // Configurar handler para SIGINT (Ctrl+C)
-  signal(SIGINT, handle_sigint);
+  // Initialize shared memory
+  shared = mmap(NULL, sizeof(struct shared_memory), PROT_READ | PROT_WRITE,
+                MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+  if (shared == MAP_FAILED)
+  {
+    perror("Error creating shared memory");
+    exit(1);
+  }
+  shared->process_count = 0;
 
   // Procesar argumentos de línea de comandos
   if (argc > 1)
   {
     time_max = atoi(argv[1]);
     printf("Tiempo máximo de ejecución establecido en %d segundos.\n", time_max);
+    timemax_monitor_pid = start_timemax_monitor(time_max, shared);
   }
 
-  // Iniciar el proceso de monitoreo de time_max en un proceso separado
-  if (time_max > 0)
-  {
-    timemax_monitor_pid = fork();
-    if (timemax_monitor_pid < 0)
-    {
-      perror("Error al crear proceso de monitoreo de tiempo máximo");
-      exit(1);
-    }
-    else if (timemax_monitor_pid == 0)
-    {
-      // Proceso hijo
-      check_timemax_processes();
-      exit(0); // Nunca debería llegar aquí
-    }
-    else
-    {
-      printf("Monitoreo de tiempo máximo iniciado en proceso %d\n", timemax_monitor_pid);
-    }
-  }
+  // Iniciar el thread de monitoreo de procesos
+  process_monitor_pid = start_process_monitor(shared);
+
+  // Configurar handler para SIGINT (Ctrl+C)
+  signal(SIGINT, handle_sigint);
 
   printf("Bienvenido a DCCAdmin\n");
   printf("Escriba 'help' para ver los comandos disponibles\n");
@@ -158,7 +72,7 @@ int main(int argc, char const *argv[])
   while (1)
   {
     printf("dccadmin> ");
-    char **input = read_user_input();
+    input = read_user_input();
 
     if (input[0] == NULL)
     {
@@ -172,11 +86,11 @@ int main(int argc, char const *argv[])
     }
     else if (strcmp(input[0], "start") == 0)
     {
-      start_process(input);
+      start_process(input, shared);
     }
     else if (strcmp(input[0], "info") == 0)
     {
-      show_info();
+      show_info(shared);
     }
     else if (strcmp(input[0], "timeout") == 0)
     {
@@ -186,19 +100,17 @@ int main(int argc, char const *argv[])
       }
       else
       {
-        timeout_processes(atoi(input[1]));
+        timeout_processes(atoi(input[1]), shared);
       }
     }
     else if (strcmp(input[0], "quit") == 0)
     {
       free_user_input(input);
-      // Terminar el proceso de monitoreo de time_max
-      if (timemax_monitor_pid > 0)
-      {
-        kill(timemax_monitor_pid, SIGTERM);
-        waitpid(timemax_monitor_pid, NULL, 0);
-      }
-      quit_program();
+      if (shared != NULL)
+        munmap(shared, sizeof(struct shared_memory));
+      stop_timemax_monitor(timemax_monitor_pid);
+      stop_process_monitor(process_monitor_pid);
+      quit_program(shared);
       break; // Por si quit_program() falla
     }
     else
@@ -206,7 +118,8 @@ int main(int argc, char const *argv[])
       printf("Comando no reconocido. Use 'help' para ver los comandos disponibles\n");
     }
 
-    free_user_input(input);
+    if (input != NULL)
+      free_user_input(input);
   }
 
   return 0;

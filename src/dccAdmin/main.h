@@ -10,6 +10,7 @@
 #include <signal.h>
 #include <time.h>
 #include "../input_manager/manager.h"
+#include <pthread.h>
 
 #define MAX_PROCESSES 10
 
@@ -32,8 +33,6 @@ extern int time_max; // -1 significa tiempo ilimitado
 
 // Declaraciones de funciones generales
 void handle_sigint(int sig);
-void update_process_status();
 void print_process_info(ProcessInfo *p);
-void check_timemax_processes(); // Función para verificar los procesos que exceden time_max
 
 #endif // MAIN_H

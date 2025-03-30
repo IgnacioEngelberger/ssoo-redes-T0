@@ -49,9 +49,12 @@ char **read_user_input()
  */
 void free_user_input(char **input)
 {
+  if (input == NULL)
+    return;
+
   for (int i = 0; i < MAX_SPLIT; i++)
-  {
-    free(input[i]);
-  }
+    if (input[i] != NULL)
+      free(input[i]);
+
   free(input);
 }
