@@ -8,23 +8,16 @@
 #include "timemax_monitor.h"
 
 // Definiciones de variables globales
-struct shared_memory *shared = NULL;
-int time_max = -1;             // -1 significa tiempo ilimitado
-pid_t timemax_monitor_pid = 0; // PID del proceso que monitorea el time_max
-pid_t process_monitor_pid = 0; // PID del proceso que monitorea los procesos
+ProcessInfo processes[MAX_PROCESSES];
+int process_count = 0;
+int time_max = -1; // -1 significa tiempo ilimitado
 char **input = NULL;
 
 // Implementación de funciones generales
 void handle_sigint(int sig)
 {
-  if (shared != NULL)
-    munmap(shared, sizeof(struct shared_memory));
   printf("\nRecibido SIGINT (%d). Terminando...\n", sig);
-  if (input != NULL)
-    free_user_input(input);
-  stop_timemax_monitor(timemax_monitor_pid);
-  stop_process_monitor(process_monitor_pid);
-  quit_program(shared);
+  quit_program();
 }
 
 void print_process_info(ProcessInfo *p)
@@ -42,26 +35,12 @@ void print_process_info(ProcessInfo *p)
 
 int main(int argc, char const *argv[])
 {
-  // Initialize shared memory
-  shared = mmap(NULL, sizeof(struct shared_memory), PROT_READ | PROT_WRITE,
-                MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-  if (shared == MAP_FAILED)
-  {
-    perror("Error creating shared memory");
-    exit(1);
-  }
-  shared->process_count = 0;
-
   // Procesar argumentos de línea de comandos
   if (argc > 1)
   {
     time_max = atoi(argv[1]);
     printf("Tiempo máximo de ejecución establecido en %d segundos.\n", time_max);
-    timemax_monitor_pid = start_timemax_monitor(time_max, shared);
   }
-
-  // Iniciar el thread de monitoreo de procesos
-  process_monitor_pid = start_process_monitor(shared);
 
   // Configurar handler para SIGINT (Ctrl+C)
   signal(SIGINT, handle_sigint);
@@ -73,6 +52,11 @@ int main(int argc, char const *argv[])
   {
     printf("dccadmin> ");
     input = read_user_input();
+
+    monitor_processes();
+
+    if (time_max != -1)
+      check_timemax_processes(time_max);
 
     if (input[0] == NULL)
     {
@@ -86,11 +70,11 @@ int main(int argc, char const *argv[])
     }
     else if (strcmp(input[0], "start") == 0)
     {
-      start_process(input, shared);
+      start_process(input);
     }
     else if (strcmp(input[0], "info") == 0)
     {
-      show_info(shared);
+      show_info();
     }
     else if (strcmp(input[0], "timeout") == 0)
     {
@@ -100,26 +84,20 @@ int main(int argc, char const *argv[])
       }
       else
       {
-        timeout_processes(atoi(input[1]), shared);
+        timeout_processes(atoi(input[1]));
       }
     }
     else if (strcmp(input[0], "quit") == 0)
     {
       free_user_input(input);
-      if (shared != NULL)
-        munmap(shared, sizeof(struct shared_memory));
-      stop_timemax_monitor(timemax_monitor_pid);
-      stop_process_monitor(process_monitor_pid);
-      quit_program(shared);
-      break; // Por si quit_program() falla
+      quit_program();
     }
     else
     {
       printf("Comando no reconocido. Use 'help' para ver los comandos disponibles\n");
     }
 
-    if (input != NULL)
-      free_user_input(input);
+    free_user_input(input);
   }
 
   return 0;

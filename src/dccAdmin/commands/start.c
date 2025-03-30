@@ -1,6 +1,6 @@
 #include "start.h"
 
-void start_process(char **args, struct shared_memory *shared)
+void start_process(char **args)
 {
   if (args[1] == NULL)
   {
@@ -9,7 +9,7 @@ void start_process(char **args, struct shared_memory *shared)
     return;
   }
 
-  if (shared->process_count >= MAX_PROCESSES)
+  if (process_count >= MAX_PROCESSES)
   {
     printf("Error: Número máximo de procesos alcanzado (%d)\n", MAX_PROCESSES);
     return;
@@ -31,16 +31,16 @@ void start_process(char **args, struct shared_memory *shared)
   }
   else
   {
-    shared->processes[shared->process_count].pid = pid;
-    strncpy(shared->processes[shared->process_count].name, args[1], 255);
-    shared->processes[shared->process_count].start_time = time(NULL);
-    shared->processes[shared->process_count].exit_code = -1;
-    shared->processes[shared->process_count].signal_value = -1;
-    shared->processes[shared->process_count].running = 1;
-    shared->processes[shared->process_count].timeout_id = 0;   // Inicialmente no está afectado por timeout
-    shared->processes[shared->process_count].sigterm_time = 0; // Inicialmente no ha recibido SIGTERM
+    processes[process_count].pid = pid;
+    strncpy(processes[process_count].name, args[1], 255);
+    processes[process_count].start_time = time(NULL);
+    processes[process_count].exit_code = -1;
+    processes[process_count].signal_value = -1;
+    processes[process_count].running = 1;
+    processes[process_count].timeout_id = 0;   // Inicialmente no está afectado por timeout
+    processes[process_count].sigterm_time = 0; // Inicialmente no ha recibido SIGTERM
 
-    shared->process_count++;
+    process_count++;
 
     printf("Proceso iniciado: PID=%d, Programa=%s", pid, args[1]);
     // Imprimir argumentos adicionales si existen

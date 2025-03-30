@@ -5,6 +5,6 @@
 #include "../process_monitor.h"
 
 // Función para iniciar un nuevo proceso
-void start_process(char **args, struct shared_memory *shared);
+void start_process(char **args);
 
 #endif // CMD_START_H

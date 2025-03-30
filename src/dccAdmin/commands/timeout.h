@@ -5,6 +5,6 @@
 #include "../process_monitor.h"
 
 // Función para iniciar un timeout para los procesos actuales
-void timeout_processes(int timeout_seconds, struct shared_memory *shared);
+void timeout_processes(int timeout_seconds);
 
 #endif // CMD_TIMEOUT_H

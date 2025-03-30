@@ -31,6 +31,9 @@ OPT=-g # Guardar toda la información para poder debugear. No optimiza
 # $(OPT)   = Nivel de optimización
 CFLAGS=-Wunused -Wall $(OPT)
 
+# Flags for Address Sanitizer
+ASAN_FLAGS=-fsanitize=address -fno-omit-frame-pointer
+
 ###############################################################################
 # LIBRERÍAS                                                                   #
 ###############################################################################
@@ -53,6 +56,9 @@ PROGRAMS=dccAdmin
 # Todos los directorios que contienen archivos de código
 SRCDIR=$(COMMON) $(PROGRAMS)
 
+# Archivos adicionales en dccAdmin
+DCCADMIN_SRCS=src/dccAdmin/process_monitor.c
+
 ###############################################################################
 # DEPENDENCIAS Y DIRECTORIOS                                                  #
 ###############################################################################
@@ -64,7 +70,7 @@ DEPS := $(foreach i, $(COMMON), $(shell find $(SRC)/$(i) -name '*.h'))
 HDRFILES := $(shell find $(SRC) -name '*.h')
 
 # Todos los archivos .c
-SRCFILES := $(shell find $(SRC) -name '*.c')
+SRCFILES := $(shell find $(SRC) -name '*.c') $(DCCADMIN_SRCS)
 
 # Archivos de objeto .o, un estado intermedio de compilación
 OBJFILES := $(foreach i, $(SRCFILES), $(patsubst $(SRC)/%.c, $(OBJ)/%.o, $(i)))
@@ -117,6 +123,10 @@ obj/%.o: src/%.c $$(call LOCAL_DEPS,$$@) $(DEPS) Makefile
 ## todos los .o de los directorios comunes
 $(PROGRAMS): $$(filter obj/$$@/% $(foreach i, $(COMMON), obj/$(i)/%), $(OBJFILES))
 	@$(CC) $(CFLAGS) $^ -o $@ $(LIB) && echo "compiled '$@'"
+
+# Target for ASan debugging
+asan: CFLAGS+=$(ASAN_FLAGS)
+asan: clean all
 
 ###############################################################################
 #                   Cualquier duda no temas en preguntar!                     #

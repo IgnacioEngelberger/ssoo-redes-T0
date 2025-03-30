@@ -1,10 +1,10 @@
 #include "timeout.h"
 
-void timeout_processes(int timeout_seconds, struct shared_memory *shared)
+void timeout_processes(int timeout_seconds)
 {
   int running_count = 0;
-  for (int i = 0; i < shared->process_count; i++)
-    if (shared->processes[i].running)
+  for (int i = 0; i < process_count; i++)
+    if (processes[i].running)
       running_count++;
 
   if (running_count == 0)
@@ -26,9 +26,9 @@ void timeout_processes(int timeout_seconds, struct shared_memory *shared)
     pid_t pid = getpid();
 
     // Marcar los procesos actuales como afectados por este timeout
-    for (int i = 0; i < shared->process_count; i++)
-      if (shared->processes[i].running)
-        shared->processes[i].timeout_id = pid;
+    for (int i = 0; i < process_count; i++)
+      if (processes[i].running)
+        processes[i].timeout_id = pid;
 
     // Esperar el tiempo especificado
     sleep(timeout_seconds);
@@ -36,20 +36,20 @@ void timeout_processes(int timeout_seconds, struct shared_memory *shared)
     // Después del timeout, terminar los procesos marcados,
     // solo afectar a los procesos que estaban en ejecución cuando se lanzó este timeout
     printf("Timeout cumplido!\n");
-    for (int i = 0; i < shared->process_count; i++)
-      if (shared->processes[i].running && shared->processes[i].timeout_id == pid)
+    for (int i = 0; i < process_count; i++)
+      if (processes[i].running && processes[i].timeout_id == pid)
       {
         time_t current_time = time(NULL);
-        int execution_time = (int)difftime(current_time, shared->processes[i].start_time);
+        int execution_time = (int)difftime(current_time, processes[i].start_time);
 
         printf("%-6d %-20s %-6d %-6d %-6d\n",
-               shared->processes[i].pid,
-               shared->processes[i].name,
+               processes[i].pid,
+               processes[i].name,
                execution_time,
-               shared->processes[i].exit_code,
-               shared->processes[i].signal_value);
+               processes[i].exit_code,
+               SIGTERM);
 
-        kill(shared->processes[i].pid, SIGTERM);
+        kill(processes[i].pid, SIGTERM);
       }
 
     exit(0);

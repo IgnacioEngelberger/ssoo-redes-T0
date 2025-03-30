@@ -5,6 +5,6 @@
 #include "../process_monitor.h"
 
 // Función para terminar el programa
-void quit_program(struct shared_memory *shared);
+void quit_program();
 
 #endif // CMD_QUIT_H
