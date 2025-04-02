@@ -5,12 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/types.h>
 #include <sys/wait.h>
 #include <signal.h>
 #include <time.h>
 #include "../input_manager/manager.h"
-#include <pthread.h>
 
 #define MAX_PROCESSES 10
 
@@ -27,7 +25,8 @@ typedef struct
 } ProcessInfo;
 
 // Variables globales declaradas en main.c, referenciadas en otros archivos
-extern ProcessInfo processes[MAX_PROCESSES];
+extern ProcessInfo processes[MAX_PROCESSES*10];
+extern int active_process_count;
 extern int process_count;
 extern int time_max; // -1 significa tiempo ilimitado
 

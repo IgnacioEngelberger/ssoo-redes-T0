@@ -28,8 +28,8 @@ void quit_program()
         }
 
         processes[i].running = 0;
-        processes[i].timeout_id = 0;   // Limpiar el timeout_id
-        processes[i].sigterm_time = 0; // Limpiar el tiempo de SIGTERM
+        processes[i].timeout_id = 0;   
+        processes[i].sigterm_time = 0; 
         if (WIFEXITED(status))
           processes[i].exit_code = WEXITSTATUS(status);
         else if (WIFSIGNALED(status))
@@ -43,5 +43,4 @@ void quit_program()
   for (int i = 0; i < process_count; i++)
     print_process_info(&processes[i]);
 
-  exit(0);
 }
