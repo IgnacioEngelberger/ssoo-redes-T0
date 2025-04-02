@@ -8,9 +8,10 @@
 #include "timemax_monitor.h"
 
 // Definiciones de variables globales
-ProcessInfo processes[MAX_PROCESSES];
+ProcessInfo processes[MAX_PROCESSES*10];
+int active_process_count = 0;
 int process_count = 0;
-int time_max = -1; // -1 significa tiempo ilimitado
+int time_max = -1;
 char **input = NULL;
 
 // Implementación de funciones generales
@@ -35,7 +36,6 @@ void print_process_info(ProcessInfo *p)
 
 int main(int argc, char const *argv[])
 {
-  // Procesar argumentos de línea de comandos
   if (argc > 1)
   {
     time_max = atoi(argv[1]);
@@ -50,13 +50,13 @@ int main(int argc, char const *argv[])
 
   while (1)
   {
-    printf("dccadmin> ");
-    input = read_user_input();
+    if (time_max != -1)
+      check_timemax_processes(time_max);
 
     monitor_processes();
 
-    if (time_max != -1)
-      check_timemax_processes(time_max);
+    printf("dccadmin> ");
+    input = read_user_input();
 
     if (input[0] == NULL)
     {
@@ -91,6 +91,7 @@ int main(int argc, char const *argv[])
     {
       free_user_input(input);
       quit_program();
+      exit(0);
     }
     else
     {

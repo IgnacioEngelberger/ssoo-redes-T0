@@ -7,10 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Función que se ejecuta en el thread de monitoreo
 void monitor_processes()
 {
-
   for (int i = 0; i < process_count; i++)
   {
     if (processes[i].running)
@@ -21,12 +19,14 @@ void monitor_processes()
       if (result > 0)
       {
         processes[i].running = 0;
-        processes[i].timeout_id = 0;   // Limpiar el timeout al terminar
-        processes[i].sigterm_time = 0; // Limpiar el tiempo de SIGTERM al terminar
+        processes[i].timeout_id = 0;   
+        processes[i].sigterm_time = 0; 
         if (WIFEXITED(status))
           processes[i].exit_code = WEXITSTATUS(status);
         else if (WIFSIGNALED(status))
           processes[i].signal_value = WTERMSIG(status);
+
+        active_process_count--;
       }
     }
   }

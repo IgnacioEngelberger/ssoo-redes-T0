@@ -1,4 +1,5 @@
 #include "start.h"
+#include <unistd.h>
 
 void start_process(char **args)
 {
@@ -9,9 +10,9 @@ void start_process(char **args)
     return;
   }
 
-  if (process_count >= MAX_PROCESSES)
+  if (active_process_count >= MAX_PROCESSES)
   {
-    printf("Error: Número máximo de procesos alcanzado (%d)\n", MAX_PROCESSES);
+    printf("Error: Número máximo de procesos activos alcanzado (%d)\n", MAX_PROCESSES);
     return;
   }
 
@@ -37,15 +38,17 @@ void start_process(char **args)
     processes[process_count].exit_code = -1;
     processes[process_count].signal_value = -1;
     processes[process_count].running = 1;
-    processes[process_count].timeout_id = 0;   // Inicialmente no está afectado por timeout
-    processes[process_count].sigterm_time = 0; // Inicialmente no ha recibido SIGTERM
+    processes[process_count].timeout_id = 0;   
+    processes[process_count].sigterm_time = 0; 
 
     process_count++;
+    active_process_count++;
 
     printf("Proceso iniciado: PID=%d, Programa=%s", pid, args[1]);
-    // Imprimir argumentos adicionales si existen
     for (int i = 2; args[i] != NULL; i++)
       printf(" %s", args[i]);
     printf("\n\n");
+    
   }
+  return;
 }
